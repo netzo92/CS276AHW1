@@ -30,12 +30,12 @@ $ns duplex_link $n3 $n8 10Mb 10ms DropTail
 
 
 #setup an udp connection from n1 to n4
-set udp [new Agent/UDP]
-$ns attach-agent $n1 $udp
+set udp1 [new Agent/UDP]
+$ns attach-agent $n1 $udp1
 set null [new Agent/Null]
 $ns attach-agent $n4 $null
-$ns connect $udp $null
-$udp set fid_ 1
+$ns connect $udp1 $null
+$udp1 set fid_ 1
 
 #setup a CBR connection over UDP connection
 set cbr1 [new Application/Traffic/CBR]
@@ -45,7 +45,31 @@ $cbr set packet_size_ 1000
 $cbr set rate_ 1Mb
 $cbr set random_ false
 
+set udp2 [new Agent/UDP]
+$ns attach-agent $n7 $udp2
+set null2 [new Agent/Null]
+$ns attach-agent $n8 $null2
+$ns connect $udp2 $null2
+$udp2 set fid_ 2
+set cbr2 [new Application/Traffic/CBR]
+$cbr2 attach-agent $udp2
+$cbr2 set type_ CBR
+$cbr2 set packet_size_ 1000
+$cbr2 set rate_ 1Mb
+$cbr2 set random_ false
 
+$set udp3 [new Agent/UDP]
+$ns attach-agent $n5 $udp3
+set null3 [new Agent/Null]
+$ns attach-agent $n6 $null3
+$ns connect $udp3 $null3
+$udp3 set fid_ 3
+set cbr3 [new Application/Traffic/CBR]
+cbr3 attach-agent $udp3
+$cbr3 set type_ CBR
+$cbr3 set packet_size_ 500
+$cbr3 set rate_ 0.6Mb
+$cbr3 set random_ false
 #define a 'finish' procedure
 proc finish {} {
 	global ns tracefile nf
