@@ -12,7 +12,7 @@ class TraceEvent:
 		self.flow_id = int(args[7])
 		self.source_addr, self.dest_addr = int(args[8].split(".")[0]), int(args[9].split(".")[0])
 		self.sequence_number = int(args[10])
-		self.packed_uid = int(args[11])
+		self.packet_uid = int(args[11])
 
 class Flow:
 	
@@ -21,12 +21,14 @@ class Flow:
 		self.trace_length = 0.0
 		self.flow = flow
 		self.average_latency = 	0
-
+		self.start = 100000
 
 	def add(self, event):
 		self.events.append(event)
 		if event.time > self.trace_length:
 			self.trace_length = event.time		
+		if event.time < self.start:
+			self.start = event.time
 	
 	def calculate_average_loss_rate(self):
 		recieved_packets = 0
@@ -59,15 +61,18 @@ class Flow:
 		current_limit = start + interval
 		for event in self.events:
 			if event.time >= current_limit:
-				olist.append((current_limit, float(bytes_transferred)/event.time))
+				duration = event.time-self.start
+				if bytes_transferred != 0:
+					olist.append((current_limit, float(bytes_transferred)/(duration)))
+				else:
+					olist.append((current_limit, 0))
 				current_limit += interval
-				if current_limit > end:
-					print 'Trace Bandwidth %d' % self.flow
-					for x in olist:
-						print '%f, %f' % (x[0], x[1])
-					break
-			if event.time < current_limit and event.event_type == 'r' and (event.dest_node == event.dest_addr) and event.packet_type != ack:
+			if event.time < current_limit and event.event_type == 'r' and (event.dest_node == event.dest_addr) and event.packet_type != 'ack':
 				bytes_transferred += event.packet_size
+		print 'Trace Bandwidth %d' % self.flow
+		for x in olist:
+			print '%f, %f' % (x[0], x[1])
+		
 
 	
 	def end_to_end_through_time(self, start, end=5.0, interval = 0.1):
@@ -78,18 +83,21 @@ class Flow:
 		packet_start_times = {}
 		for event in self.events:
 			if event.time >= current_limit:
-				olist.append((current_limit, total_delay/num_packet))
-				if current_limit > end:
-					print 'Trace End-to-End %d' % self.flow
-					for x in olist:
-						print '%f, %f' %(x[0], x[1])
-					break
+				if num_packet != 0:
+					olist.append((current_limit, total_delay/num_packet))
+				else:
+					olist.append((current_limit, -1))
+				current_limit += interval
 			if event.time < current_limit and event.event_type == 'r' and (event.dest_node == event.dest_addr) and event.packet_uid in packet_start_times:
 				total_delay += event.time - packet_start_times[event.packet_uid]
 				num_packet += 1
 			elif event.time < current_limit and event.event_type == '+' and (event.source_node == event.source_addr):
 				packet_start_times[event.packet_uid] = event.time			
 
+		print 'Trace End-to-End %d' %self.flow
+		for x in olist:
+			print '%f, %f' %(x[0],x[1])
+		
 class TraceFile:
 	
 	@staticmethod
