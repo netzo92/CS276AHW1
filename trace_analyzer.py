@@ -1,3 +1,4 @@
+import collections
 
 class TraceEvent:
 	def __init__(self, *args):
@@ -19,7 +20,8 @@ class Flow:
 		self.events = []
 		self.trace_length = 0.0
 		self.flow = flow
-	
+		self.average_latency = 	0
+
 
 	def add(self, event):
 		self.events.append(event)
@@ -40,7 +42,7 @@ class Flow:
 	def calculate_average_throughput(self):
 		bytes_transferred = 0
 		for event in self.events:
-			if event.event_type == 'r' and (event.dest_node == event.dest_addr):
+			if event.event_type == 'r' and (event.dest_node == event.dest_addr) and event.packet_type != 'ack':
 				bytes_transferred += event.packet_size
 		return bytes_transferred/self.trace_length
 
@@ -50,7 +52,43 @@ class Flow:
 
 	def return_stats(self):
 		return {'lr': self.calculate_average_loss_rate(),'at': self.calculate_average_throughput()}
+
+	def bandwidth_through_time(self, start, end=5.0, interval = 0.5):	
+		olist = []
+		bytes_transferred = 0
+		current_limit = start + interval
+		for event in self.events:
+			if event.time >= current_limit:
+				olist.append((current_limit, float(bytes_transferred)/event.time))
+				current_limit += interval
+				if current_limit > end:
+					print 'Trace Bandwidth %d' % self.flow
+					for x in olist:
+						print '%f, %f' % (x[0], x[1])
+					break
+			if event.time < current_limit and event.event_type == 'r' and (event.dest_node == event.dest_addr) and event.packet_type != ack:
+				bytes_transferred += event.packet_size
+
 	
+	def end_to_end_through_time(self, start, end=5.0, interval = 0.1):
+	 	olist = []
+		total_delay = 0
+		num_packet = 0
+		current_limit = start + interval
+		packet_start_times = {}
+		for event in self.events:
+			if event.time >= current_limit:
+				olist.append((current_limit, total_delay/num_packet))
+				if current_limit > end:
+					print 'Trace End-to-End %d' % self.flow
+					for x in olist:
+						print '%f, %f' %(x[0], x[1])
+					break
+			if event.time < current_limit and event.event_type == 'r' and (event.dest_node == event.dest_addr) and event.packet_uid in packet_start_times:
+				total_delay += event.time - packet_start_times[event.packet_uid]
+				num_packet += 1
+			elif event.time < current_limit and event.event_type == '+' and (event.source_node == event.source_addr):
+				packet_start_times[event.packet_uid] = event.time			
 
 class TraceFile:
 	
@@ -73,14 +111,16 @@ class TraceFile:
 	def return_stats(self):
 		stat_dict = {}
 		for x in range(1,4):
-			stat_dict[x] = self.streams[x]
+			if x in self.streams:
+				stat_dict[x] = self.streams[x]
 		return stat_dict
 
 	def stat_str(self):
 		string = ''
 		stat_dict = self.return_stats()
 		for x in range(1,4):
-			string += str(x)+', '+str(stat_dict[x].return_stats()['lr']) +', '+ str(stat_dict[x].return_stats()['at']) +', '
+			if x in stat_dict:
+				string += str(x)+', '+str(stat_dict[x].return_stats()['lr']) +', '+ str(stat_dict[x].return_stats()['at']) +', '
 		return string
 			
 #three streams
