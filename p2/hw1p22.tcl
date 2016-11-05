@@ -65,7 +65,7 @@ $ns attach-agent $n6 $null3
 $ns connect $udp3 $null3
 $udp3 set fid_ 3
 set cbr3 [new Application/Traffic/CBR]
-cbr3 attach-agent $udp3
+$cbr3 attach-agent $udp3
 $cbr3 set type_ CBR
 $cbr3 set packet_size_ 500
 $cbr3 set rate_ 0.6Mb
